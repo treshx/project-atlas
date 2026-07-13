@@ -60,5 +60,9 @@ Base de conhecimento da empresa utilizada pelo Atlas para responder perguntas do
 ### conversations
 Armazena cada conversa iniciada entre um cliente e o Atlas.
 
+- `channel` (`text`, nullable): canal de comunicação utilizado na conversa, como WhatsApp, Instagram ou webchat.
+
 ### messages
 Armazena todas as mensagens pertencentes a uma conversa, tanto do cliente quanto do Atlas.
+
+- `external_id` (`text`, nullable): identificador externo da mensagem fornecido pelo canal ou provedor de comunicação.
