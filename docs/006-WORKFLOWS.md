@@ -230,6 +230,52 @@ Exemplo:
   }
 }
 
+### Orquestração
+
+O `atlas-core` utiliza a estrutura normalizada recebida do `atlas-webhook` como contexto principal para coordenar o processamento da mensagem.
+
+Durante o processamento, o `atlas-core` deve preservar, no mínimo:
+
+- `company_id`;
+- `channel`;
+- dados do `customer`;
+- dados da `message`.
+
+A partir desse contexto, o `atlas-core` coordena os workflows necessários de acordo com a etapa do processamento.
+
+Fluxo principal previsto:
+
+```text
+atlas-webhook
+      ↓
+atlas-core
+      ├──→ atlas-knowledge
+      ├──→ atlas-save-conversation
+      ├──→ atlas-save-message
+      └──→ atlas-send-message
+Cada workflow recebe apenas os dados necessários para executar sua responsabilidade.
+
+Os contratos específicos de entrada e saída de cada workflow devem ser respeitados pelo `atlas-core`.
+
+### Saída
+
+O `atlas-core` não possui uma única saída intermediária fixa para todos os workflows.
+
+Como orquestrador, sua responsabilidade é coordenar o fluxo de processamento, consumir as saídas dos workflows chamados e utilizar esses resultados nas etapas seguintes.
+
+Ao final do processamento síncrono de uma mensagem, o `atlas-core` deve produzir um resultado de processamento padronizado.
+
+Exemplo:
+
+```json
+{
+  "success": true,
+  "company_id": "uuid-da-empresa",
+  "conversation_id": "uuid-da-conversa",
+  "incoming_message_id": "uuid-da-mensagem-recebida",
+  "outgoing_message_id": "uuid-da-mensagem-enviada",
+  "status": "completed"
+}
 ---
 
 ## atlas-knowledge
@@ -260,6 +306,31 @@ Exemplo:
 
 ---
 
+### Saída
+
+Após consultar a base de conhecimento da empresa, o workflow deve retornar um contexto estruturado para o `atlas-core`.
+
+Exemplo:
+
+```json
+{
+  "company_id": "uuid-da-empresa",
+  "context": {
+    "services": [
+      {
+        "name": "Corte de cabelo",
+        "price": 40.00
+      }
+    ],
+    "information": [
+      "Horário de atendimento: 09:00 às 18:00"
+    ]
+  },
+  "status": "completed"
+}
+
+---
+
 ## atlas-save-conversation
 
 ### Responsabilidade
@@ -284,6 +355,27 @@ Exemplo:
   "customer": {
     "name": "Nome do cliente",
     "phone": "5511999999999"
+  }
+}
+
+---
+
+### Saída
+
+Após criar ou localizar a conversa, o workflow deve retornar o identificador da conversa criada ou encontrada.
+
+Exemplo:
+
+```json
+{
+  "company_id": "uuid-da-empresa",
+  "conversation": {
+    "id": "uuid-da-conversa",
+    "customer": {
+      "name": "Nome do cliente",
+      "phone": "5511999999999"
+    },
+    "status": "active"
   }
 }
 
@@ -330,6 +422,26 @@ Exemplo de uma mensagem gerada pelo Atlas:
   "status": "generated"
 }
 ```
+---
+
+### Saída
+
+Após armazenar a mensagem, o workflow deve retornar os dados da mensagem criada.
+
+Exemplo:
+
+```json
+{
+  "message": {
+    "id": "uuid-da-mensagem",
+    "conversation_id": "uuid-da-conversa",
+    "sender": "customer",
+    "message": "Quanto custa o corte de cabelo?",
+    "message_type": "text",
+    "direction": "inbound",
+    "status": "received"
+  }
+}
 
 ---
 
@@ -639,6 +751,24 @@ Ao receber uma solicitação, o `atlas-send-message` deve:
 
 ---
 
+---
+
+### Saída
+
+Após realizar o envio, o workflow deve retornar o resultado da operação.
+
+Exemplo:
+
+```json
+{
+  "success": true,
+  "message_id": "uuid-da-mensagem",
+  "provider": "whatsapp",
+  "channel": "whatsapp",
+  "status": "sent",
+  "sent_at": "2026-07-13T18:00:00Z"
+}
+
 ### Seleção do canal
 
 O campo `channel` determina qual integração será utilizada para enviar a mensagem.
@@ -930,6 +1060,21 @@ Ao executar, o `atlas-scheduler` deve:
 8. impedir execuções duplicadas sempre que possível.
 
 ---
+
+### Saída
+
+Após identificar e encaminhar a tarefa para o workflow responsável, o `atlas-scheduler` deve retornar o resultado da execução.
+
+Exemplo:
+
+```json
+{
+  "success": true,
+  "task_id": "uuid-da-tarefa",
+  "workflow": "atlas-send-message",
+  "status": "scheduled",
+  "executed_at": "2026-07-14T13:00:00Z"
+}
 
 ### Execução de tarefas
 
